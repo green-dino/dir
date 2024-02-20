@@ -30,9 +30,8 @@ class DataProcessor:
                 new_columns[column + '_urls'] = df[column].apply(lambda x: self.url_pattern.findall(str(x)))
         return pd.concat([df, pd.DataFrame(new_columns)], axis=1)
 
-class DataFrameHandler:
-    @staticmethod
-    def read_file_to_dataframe(file_path, sheet_name=None):
+def read_file_to_dataframe(file_path, sheet_name=None):
+    try:
         if file_path.endswith('.csv'):
             return pd.read_csv(file_path)
         elif file_path.endswith(('.xls', '.xlsx')):
@@ -45,15 +44,19 @@ class DataFrameHandler:
                 return pd.read_excel(file_path, sheet_name=sheet_name)
         else:
             raise ValueError("Unsupported file format. Please provide a CSV or XLS/XLSX file.")
+    except Exception as e:
+        st.error(f"An error occurred while reading the file: {e}")
 
-    @staticmethod
-    def save_dataframe(df, filename, format='csv'):
+def save_dataframe(df, filename, format='csv'):
+    try:
         if format == 'csv':
             df.to_csv(filename, index=False)
         elif format == 'pickle':
             df.to_pickle(filename)
         else:
             raise ValueError("Unsupported format. Please choose 'csv' or 'pickle'.")
+    except Exception as e:
+        st.error(f"An error occurred while saving the dataframe: {e}")
 
 def main():
     st.title("CSV and Excel File Processor")
@@ -85,29 +88,31 @@ def main():
 
     sheet_name = None if not sheet_name else [s.strip() for s in sheet_name.split(',')]
 
-    dataframe = DataFrameHandler.read_file_to_dataframe(file_path, sheet_name)
+    try:
+        dataframe = read_file_to_dataframe(file_path, sheet_name)
+        st.write("DataFrame Preview:")
+        st.write(dataframe)
 
-    st.write("DataFrame Preview:")
-    st.write(dataframe)
+        output_dir = FileHandler.create_output_directory(file_dir)
 
-    output_dir = FileHandler.create_output_directory(file_dir)
+        output_filename = st.text_input("Enter the filename for the output file (without extension):")
 
-    output_filename = st.text_input("Enter the filename for the output file (without extension):")
+        format_choice = st.selectbox("Choose output format:", options=['csv', 'pickle'])
 
-    format_choice = st.selectbox("Choose output format:", options=['csv', 'pickle'])
-
-    if st.button("Save"):
-        try:
-            if format_choice.lower() == 'csv':
-                output_file = os.path.join(output_dir, f"{output_filename}.csv")
-                DataFrameHandler.save_dataframe(dataframe, output_file, 'csv')
-                st.success(f"DataFrame saved as CSV: {output_file}")
-            elif format_choice.lower() == 'pickle':
-                output_file = os.path.join(output_dir, f"{output_filename}.pickle")
-                DataFrameHandler.save_dataframe(dataframe, output_file, 'pickle')
-                st.success(f"DataFrame saved as pickle: {output_file}")
-        except ValueError as ve:
-            st.error(f"Error: {ve}")
+        if st.button("Save"):
+            try:
+                if format_choice.lower() == 'csv':
+                    output_file = os.path.join(output_dir, f"{output_filename}.csv")
+                    save_dataframe(dataframe, output_file, 'csv')
+                    st.success(f"DataFrame saved as CSV: {output_file}")
+                elif format_choice.lower() == 'pickle':
+                    output_file = os.path.join(output_dir, f"{output_filename}.pickle")
+                    save_dataframe(dataframe, output_file, 'pickle')
+                    st.success(f"DataFrame saved as pickle: {output_file}")
+            except ValueError as ve:
+                st.error(f"Error: {ve}")
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()
